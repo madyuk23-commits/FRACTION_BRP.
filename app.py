@@ -11,7 +11,7 @@ app = Flask(__name__)
 
 # ===== НАСТРОЙКИ - ЗАМЕНИТЕ НА СВОИ =====
 CLIENT_ID = "1527673986652176454"  # Ваш Client ID
-CLIENT_SECRET = "BDSxVH-0mJDliOaFKcrIlL0vswgU7Sd"  # Ваш Client Secret
+CLIENT_SECRET = "2sVmEtNQy-V5sWt9OGAOKFmCV-ykO3QK"  # Ваш Client Secret
 REDIRECT_URI = "https://fraction-brp.onrender.com/callback"
 WEBHOOK_URL = "https://discord.com/api/webhooks/1527674667274473502/VOQWxCWhCW0nx1-LY2PGhhJbNLBJadXkUOu1X3e2Y7nY43_gkhJaEGCvRtHcCqXatC79"  # Ваш вебхук
 # =========================================
